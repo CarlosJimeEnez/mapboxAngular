@@ -3,6 +3,7 @@ import { Camion } from '@core/interface/camion';
 import { MapService } from '@core/services/map.service';
 import { LocalizacionesService } from 'src/app/services/localizaciones.service';
 import * as mapboxgl from 'mapbox-gl'
+import * as turf from "@turf/turf"
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatFormField } from '@angular/material/form-field';
 import { Observable, interval } from "rxjs"
@@ -22,15 +23,43 @@ export class MapComponent implements OnInit{
     Nombre: ".",
     Empresa: ".",
     Lng: 0,
-    Lat: 0
+    Lat: 0,
+    isInside: false, 
+    estadoAnterior: false 
   }
 
   lng_polygon: number = -68.137343;
   lat_polygon: number = 45.137451;
+  poligonsCoords: number[][] = [
+    [-67.13734, 45.13745],
+    [-66.96466, 44.8097],
+    [-68.03252, 44.3252],
+    [-69.06, 43.98],
+    [-70.11617, 43.68405],
+    [-70.64573, 43.09008],
+    [-70.75102, 43.08003],
+    [-70.79761, 43.21973],
+    [-70.98176, 43.36789],
+    [-70.94416, 43.46633],
+    [-71.08482, 45.30524],
+    [-70.66002, 45.46022],
+    [-70.30495, 45.91479],
+    [-70.00014, 46.69317],
+    [-69.23708, 47.44777],
+    [-68.90478, 47.18479],
+    [-68.2343, 47.35462],
+    [-67.79035, 47.06624],
+    [-67.79141, 45.70258],
+    [-67.13734, 45.13745]
+  ]
 
   mapbox = (mapboxgl as typeof mapboxgl);
   mapa!: mapboxgl.Map;
-  marker = new mapboxgl.Marker
+  marker = new mapboxgl.Marker({
+    draggable: true
+  })
+    .setLngLat([this.lng_polygon, this.lat_polygon])
+
   style = 'mapbox://styles/mapbox/light-v11';
   zoom = 5;
   intervalTime = 5000
@@ -50,6 +79,7 @@ export class MapComponent implements OnInit{
     this.localizaciones.getLocalizacionesByEmpresa("AstrumSatelital")
      .subscribe(data => {
         this.camiones = data
+        this.camion.Nombre = this.camiones[0].Nombre
         this.camion.Lat = this.camiones[0].Lat
         this.camion.Lng = this.camiones[0].Lng
         console.log(data[0])
@@ -71,28 +101,7 @@ export class MapComponent implements OnInit{
               "geometry": {
                 "type": "Polygon",
                 "coordinates": [
-                  [
-                    [-67.13734, 45.13745],
-                    [-66.96466, 44.8097],
-                    [-68.03252, 44.3252],
-                    [-69.06, 43.98],
-                    [-70.11617, 43.68405],
-                    [-70.64573, 43.09008],
-                    [-70.75102, 43.08003],
-                    [-70.79761, 43.21973],
-                    [-70.98176, 43.36789],
-                    [-70.94416, 43.46633],
-                    [-71.08482, 45.30524],
-                    [-70.66002, 45.46022],
-                    [-70.30495, 45.91479],
-                    [-70.00014, 46.69317],
-                    [-69.23708, 47.44777],
-                    [-68.90478, 47.18479],
-                    [-68.2343, 47.35462],
-                    [-67.79035, 47.06624],
-                    [-67.79141, 45.70258],
-                    [-67.13734, 45.13745]
-                  ]
+                  this.poligonsCoords
                 ]
               }
             }
@@ -122,26 +131,40 @@ export class MapComponent implements OnInit{
           })
         })
         
-        // MARKER
-        this.marker = new mapboxgl.Marker({
-          draggable: true
+        //MARKERS OPTIONS: 
+        this.marker.addTo(this.mapa)
+        this.marker.on("dragend", () => {
+          const lngLat = this.marker.getLngLat()
+          const lat = lngLat.lat
+          const lng = lngLat.lng
+          const polygon = turf.polygon([this.poligonsCoords])
+          this.camion.isInside = turf.booleanPointInPolygon([lng, lat], polygon)
+
+          console.log(this.camion.isInside)
+          if (this.camion.isInside && this.camion.estadoAnterior == false){
+            this.isInsideNotification(this.camion.Nombre, " entrando")
+            this.camion.estadoAnterior = this.camion.isInside
+          }
+          else if(!this.camion.isInside && this.camion.estadoAnterior == true){
+            this.isInsideNotification(this.camion.Nombre, " saliendo")
+            this.camion.estadoAnterior = this.camion.isInside
+          }
+
         })
-          .setLngLat([this.lng_polygon, this.lat_polygon])
-          .addTo(this.mapa)
       }, 
      error => {
        console.log(error)
       })
+    
     }
 
-    camionEntrando(): void {
-      this._snackBar.open("Entrando ... ", "", {
-        duration: 3000, 
+    isInsideNotification(nombre: string, estado: string): void {
+      this._snackBar.open("Camion: "+ nombre + estado, "", {
+        duration: 1000, 
         horizontalPosition: "right", 
       })    
     }
 
-  
     ////////////////////
       // interval(this.intervalTime).subscribe(x => {
       //   this.localizaciones.getLocalizacionesByEmpresa("AstrumSatelital")
@@ -155,5 +178,6 @@ export class MapComponent implements OnInit{
       //    })
       // })
 
-    
+  
+
 }
