@@ -4,6 +4,9 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { MapComponent } from './@core/components/map/map.component';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+import {MatSnackBarModule} from '@angular/material/snack-bar';
+import {MatFormFieldModule} from '@angular/material/form-field';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 // import { SocketIoConfig, SocketIoModule } from 'ngx-socket-io';
 import { CookieService } from 'ngx-cookie-service';
@@ -28,6 +31,10 @@ import { environment } from 'src/environment/environment';
     BrowserModule,
     AppRoutingModule,
     HttpClientModule, 
+    MatSnackBarModule,
+    MatFormFieldModule,
+    BrowserAnimationsModule, 
+    BrowserModule
     // SocketIoModule.forRoot(config)
   ],
   providers: [CookieService],

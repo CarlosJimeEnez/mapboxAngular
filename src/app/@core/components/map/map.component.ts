@@ -1,9 +1,12 @@
-import {  OnChanges,AfterViewInit, Component, OnInit } from '@angular/core';
+import { OnChanges, AfterViewInit, Component, OnInit } from '@angular/core';
 import { Camion } from '@core/interface/camion';
 import { MapService } from '@core/services/map.service';
 import { LocalizacionesService } from 'src/app/services/localizaciones.service';
-import { Observable, interval } from "rxjs"
 import * as mapboxgl from 'mapbox-gl'
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatFormField } from '@angular/material/form-field';
+import { Observable, interval } from "rxjs"
+
 // import { SocketService } from 'src/app/services/chat-service.service';
 // import { Socket } from 'ngx-socket-io';
 
@@ -13,7 +16,7 @@ import * as mapboxgl from 'mapbox-gl'
   styleUrls: ['./map.component.css']
 })
 export class MapComponent implements OnInit{
-  
+  durationInSeconds: number = 3; 
   camiones: Camion[] | null = null;
   camion: Camion = {
     Nombre: ".",
@@ -35,10 +38,13 @@ export class MapComponent implements OnInit{
   constructor(
     private map: MapService,
     private localizaciones: LocalizacionesService,
+    private _snackBar: MatSnackBar,
     // private socketService: SocketService,
     // private modalService: SocketService,
     // private socket: Socket
-    ){}
+    ){
+      this.durationInSeconds = 3
+    }
 
   ngOnInit(){
     this.localizaciones.getLocalizacionesByEmpresa("AstrumSatelital")
@@ -64,6 +70,13 @@ export class MapComponent implements OnInit{
      error => {
        console.log(error)
       })
+    }
+
+    camionEntrando(): void {
+      this._snackBar.open("Entrando ... ", "", {
+        duration: 3000, 
+        horizontalPosition: "right", 
+      })    
     }
 
       ////////////////////
@@ -92,5 +105,5 @@ export class MapComponent implements OnInit{
   //   this.socketService.emitData()
   //   console.log("info")
   // }
-  
+    
 }
