@@ -78,60 +78,57 @@ export class MapComponent implements OnInit{
     }
 
   ngOnInit(){
+    this.mapa = new mapboxgl.Map({
+      container: 'map',
+      style: this.style,
+      zoom: this.zoom,
+      center: [this.lng_polygon, this.lat_polygon] // Long, Lat
+    });
+    this.mapa.on("load", () =>{
+      this.mapa.addSource("maine", {
+        "type": "geojson",
+        "data": {
+          "type": "Feature",
+          "properties": {
+          }, 
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              this.poligonsCoords
+            ]
+          }
+        }
+      })
+
+      // Add a new layer to visualize the polygon.
+      this.mapa.addLayer({
+        'id': 'maine',
+        'type': 'fill',
+        'source': 'maine', // reference the data source
+        'layout': {},
+        'paint': {
+        'fill-color': '#0080ff', // blue color fill
+        'fill-opacity': 0.5
+        }
+      });
+      // Add a black outline around the polygon.
+      this.mapa.addLayer({
+        'id': 'outline',
+        'type': 'line',
+        'source': 'maine',
+        'layout': {},
+        'paint': {
+        'line-color': '#000',
+        'line-width': 3
+        }
+      })
+    })
+    
+    // ASTURMSATELITAL
     this.localizaciones.getLocalizacionesByEmpresa("AstrumSatelital")
      .subscribe(data => {
         this.camiones = data
-        // this.camion.Nombre = this.camiones[0].Nombre
-        // this.camion.Lat = this.camiones[0].Lat
-        // this.camion.Lng = this.camiones[0].Lng
-
-        this.mapa = new mapboxgl.Map({
-          container: 'map',
-          style: this.style,
-          zoom: this.zoom,
-          center: [this.lng_polygon, this.lat_polygon] // Long, Lat
-        });
-
-        this.mapa.on("load", () =>{
-          this.mapa.addSource("maine", {
-            "type": "geojson",
-            "data": {
-              "type": "Feature",
-              "properties": {
-              }, 
-              "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                  this.poligonsCoords
-                ]
-              }
-            }
-          })
-
-          // Add a new layer to visualize the polygon.
-          this.mapa.addLayer({
-            'id': 'maine',
-            'type': 'fill',
-            'source': 'maine', // reference the data source
-            'layout': {},
-            'paint': {
-            'fill-color': '#0080ff', // blue color fill
-            'fill-opacity': 0.5
-            }
-          });
-          // Add a black outline around the polygon.
-          this.mapa.addLayer({
-            'id': 'outline',
-            'type': 'line',
-            'source': 'maine',
-            'layout': {},
-            'paint': {
-            'line-color': '#000',
-            'line-width': 3
-            }
-          })
-        })
-        
+        console.log("AstrumSatelital: " + this.camiones[0].Nombre)
         //MARKERS OPTIONS:
         // Se añade un marcador a cada camion 
         for (const camion of this.camiones){
@@ -141,39 +138,85 @@ export class MapComponent implements OnInit{
             draggable: true
           })
             .setLngLat([this.lng_polygon, this.lat_polygon])
-          camion.marcador = marker  
+          camion.marcador = marker
+
           camion.marcador.addTo(this.mapa)
           
           camion.marcador.on("dragend", () => {
             const lngLat = camion.marcador.getLngLat()
             camion.isInside = turf.booleanPointInPolygon([lngLat.lng, lngLat.lat], this.polygon)
-            
-            if (camion.isInside && camion.estadoAnterior == false){
-              this.isInsideNotification(camion.Nombre, " entrando")
-              camion.estadoAnterior = camion.isInside
-              console.log(camion.Nombre + " is inside: " + camion.isInside)
-            }
-            else if(!camion.isInside && camion.estadoAnterior){
-              this.isInsideNotification(camion.Nombre, " saliendo")
-              camion.estadoAnterior = camion.isInside
-            }
+            this.dragendMarker(camion)
           })          
         }
-
       }, 
      error => {
        console.log(error)
-      })    
+      })
+
+      // ADSLogic
+      this.localizaciones.getLocalizacionesByEmpresa("Adslogic")
+        .subscribe(data => {
+          this.camiones = data
+          console.log("ADSLOGIC: " + this.camiones[0].Nombre)
+          //MARKERS OPTIONS:
+          // Se añade un marcador a cada camion 
+          for (const camion of this.camiones){
+            camion.estadoAnterior = false
+
+            const marker = new mapboxgl.Marker({
+              draggable: true, 
+              color: "green",
+            })
+              .setLngLat([this.lng_polygon, this.lat_polygon])
+            camion.marcador = marker
+            camion.marcador.addTo(this.mapa)
+            
+            // Dragend: 
+            camion.marcador.on("dragend", () => {
+              const lngLat = camion.marcador.getLngLat()
+              camion.isInside = turf.booleanPointInPolygon([lngLat.lng, lngLat.lat], this.polygon)
+              this.dragendMarker(camion)
+            })          
+          }  
+        },
+        error => {
+          console.log(error) 
+        })
+      
+      //  
+    }
+ 
+    dragendMarker(camion: Camion): void{
+      if (camion.isInside && camion.estadoAnterior == false){
+        this.isInsideNotification(camion.Nombre, " entrando")
+        this.markerCenter(camion.marcador)
+        camion.estadoAnterior = camion.isInside
+        console.log(camion.Nombre + " is inside: " + camion.isInside)
+      }
+      else if(!camion.isInside && camion.estadoAnterior){
+        this.isInsideNotification(camion.Nombre, " saliendo")
+        camion.estadoAnterior = camion.isInside
+      }
     }
 
     isInsideNotification(nombre: string, estado: string): void {
-      this._snackBar.open("Camion: "+ nombre + estado, "Cancel", {
+      this._snackBar.open("Camion: "+ nombre + estado, "Center", {
         duration: 3000, 
         horizontalPosition: "right",
         panelClass: ["example"]
       })
       .onAction().subscribe(() => {
         console.log("Cancel")
+      })
+    }
+
+    markerCenter(marker: mapboxgl.Marker): void {
+      this.mapa.flyTo({
+        center: marker.getLngLat(),
+        zoom: 5,
+        speed: 1.5, 
+        curve: 1, 
+        essential: true        
       })
     }
 
