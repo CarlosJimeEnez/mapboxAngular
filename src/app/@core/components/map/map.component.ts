@@ -7,6 +7,8 @@ import * as turf from "@turf/turf"
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatFormField } from '@angular/material/form-field';
 import { Observable, interval } from "rxjs"
+import { ViewEncapsulation } from '@angular/core';
+import { NgFor } from '@angular/common';
 
 // import { SocketService } from 'src/app/services/chat-service.service';
 // import { Socket } from 'ngx-socket-io';
@@ -14,7 +16,8 @@ import { Observable, interval } from "rxjs"
 @Component({
   selector: 'app-map',
   templateUrl: './map.component.html',
-  styleUrls: ['./map.component.css']
+  styleUrls: ['./map.component.css'],
+  encapsulation: ViewEncapsulation.None
 })
 export class MapComponent implements OnInit{
   durationInSeconds: number = 3; 
@@ -24,6 +27,7 @@ export class MapComponent implements OnInit{
     Empresa: ".",
     Lng: 0,
     Lat: 0,
+    marcador: new mapboxgl.Marker,
     isInside: false, 
     estadoAnterior: false 
   }
@@ -52,14 +56,12 @@ export class MapComponent implements OnInit{
     [-67.79141, 45.70258],
     [-67.13734, 45.13745]
   ]
-
+  polygon = turf.polygon([this.poligonsCoords])
+  
   mapbox = (mapboxgl as typeof mapboxgl);
   mapa!: mapboxgl.Map;
-  marker = new mapboxgl.Marker({
-    draggable: true
-  })
-    .setLngLat([this.lng_polygon, this.lat_polygon])
-
+  markers: mapboxgl.Marker[] | null = null;
+  
   style = 'mapbox://styles/mapbox/light-v11';
   zoom = 5;
   intervalTime = 5000
@@ -79,10 +81,9 @@ export class MapComponent implements OnInit{
     this.localizaciones.getLocalizacionesByEmpresa("AstrumSatelital")
      .subscribe(data => {
         this.camiones = data
-        this.camion.Nombre = this.camiones[0].Nombre
-        this.camion.Lat = this.camiones[0].Lat
-        this.camion.Lng = this.camiones[0].Lng
-        console.log(data[0])
+        // this.camion.Nombre = this.camiones[0].Nombre
+        // this.camion.Lat = this.camiones[0].Lat
+        // this.camion.Lng = this.camiones[0].Lng
 
         this.mapa = new mapboxgl.Map({
           container: 'map',
@@ -131,38 +132,49 @@ export class MapComponent implements OnInit{
           })
         })
         
-        //MARKERS OPTIONS: 
-        this.marker.addTo(this.mapa)
-        this.marker.on("dragend", () => {
-          const lngLat = this.marker.getLngLat()
-          const lat = lngLat.lat
-          const lng = lngLat.lng
-          const polygon = turf.polygon([this.poligonsCoords])
-          this.camion.isInside = turf.booleanPointInPolygon([lng, lat], polygon)
+        //MARKERS OPTIONS:
+        // Se añade un marcador a cada camion 
+        for (const camion of this.camiones){
+          camion.estadoAnterior = false
 
-          console.log(this.camion.isInside)
-          if (this.camion.isInside && this.camion.estadoAnterior == false){
-            this.isInsideNotification(this.camion.Nombre, " entrando")
-            this.camion.estadoAnterior = this.camion.isInside
-          }
-          else if(!this.camion.isInside && this.camion.estadoAnterior == true){
-            this.isInsideNotification(this.camion.Nombre, " saliendo")
-            this.camion.estadoAnterior = this.camion.isInside
-          }
+          const marker = new mapboxgl.Marker({
+            draggable: true
+          })
+            .setLngLat([this.lng_polygon, this.lat_polygon])
+          camion.marcador = marker  
+          camion.marcador.addTo(this.mapa)
+          
+          camion.marcador.on("dragend", () => {
+            const lngLat = camion.marcador.getLngLat()
+            camion.isInside = turf.booleanPointInPolygon([lngLat.lng, lngLat.lat], this.polygon)
+            
+            if (camion.isInside && camion.estadoAnterior == false){
+              this.isInsideNotification(camion.Nombre, " entrando")
+              camion.estadoAnterior = camion.isInside
+              console.log(camion.Nombre + " is inside: " + camion.isInside)
+            }
+            else if(!camion.isInside && camion.estadoAnterior){
+              this.isInsideNotification(camion.Nombre, " saliendo")
+              camion.estadoAnterior = camion.isInside
+            }
+          })          
+        }
 
-        })
       }, 
      error => {
        console.log(error)
-      })
-    
+      })    
     }
 
     isInsideNotification(nombre: string, estado: string): void {
-      this._snackBar.open("Camion: "+ nombre + estado, "", {
-        duration: 1000, 
-        horizontalPosition: "right", 
-      })    
+      this._snackBar.open("Camion: "+ nombre + estado, "Cancel", {
+        duration: 3000, 
+        horizontalPosition: "right",
+        panelClass: ["example"]
+      })
+      .onAction().subscribe(() => {
+        console.log("Cancel")
+      })
     }
 
     ////////////////////
@@ -177,7 +189,5 @@ export class MapComponent implements OnInit{
       //     console.log(`Lat:${this.camion.Lat} Lng:${this.camion.Lng}`)
       //    })
       // })
-
-  
 
 }
